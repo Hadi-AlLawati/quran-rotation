@@ -252,6 +252,7 @@ function LoginView({ onProfileCreated }) {
     setLoading(true);
 
     if (isSignUP) {
+      const emailRedirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -261,7 +262,9 @@ function LoginView({ onProfileCreated }) {
             group_id: group,
             half,
             start_juz: startJuz
-          }
+          },
+          // Ensures Supabase redirects back to the correct GitHub Pages base path.
+          emailRedirectTo
         }
       });
 
