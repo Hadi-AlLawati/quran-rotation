@@ -938,8 +938,8 @@ function AdminView({ currentUser, users, setUsers, systemDate }) {
         )}
       </div>
 
-      <div className="glass-panel" style={{ padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div className="glass-panel" style={{ padding: 0, overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: '680px', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <th style={{ padding: '1rem', color: 'var(--color-text-muted)' }}>Member</th>
