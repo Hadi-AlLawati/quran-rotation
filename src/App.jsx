@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, UserCircle, LogOut, Clock, Calendar, ShieldCheck, Trophy, AlertTriangle, CheckCircle, Gift, ArrowLeft, LoaderCircle, Mail, Edit } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { BookOpen, UserCircle, LogOut, Clock, Calendar, ShieldCheck, Trophy, AlertTriangle, CheckCircle, Gift, ArrowLeft, LoaderCircle, Mail, Edit, Bookmark } from 'lucide-react';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
 import confetti from 'canvas-confetti';
 import { getCurrentWeekNumber, getAssignedJuzForUser, getNextDeadline } from './utils';
@@ -108,42 +108,56 @@ function App() {
   return (
     <div className="app-container page-container">
       {currentUser && (
-        <header className="app-header" style={{ margin: '-2rem -2rem 2rem -2rem' }}>
-          <div className="app-brand">
-            <BookOpen size={28} />
-            <span>Nur Al-Quran</span>
+        <header className="app-header" style={{ margin: '-2rem -2rem 1.5rem -2rem', padding: '0.75rem 1rem 0.5rem 1rem', display: 'block' }}>
+          <div className="flex justify-between items-center w-full mb-2">
+            <div className="app-brand" style={{ fontSize: '1.2rem' }}>
+              <BookOpen size={20} />
+              <span>Nur Al-Quran</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end mr-1">
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, lineHeight: 1 }}>{currentUser.name}</span>
+                <span className="text-accent mt-1" style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '2px', lineHeight: 1 }}>
+                  <Trophy size={10} /> {users.find(u => u.id === currentUser.id)?.points || 0} pts
+                </span>
+              </div>
+              <UserCircle size={24} className="text-accent" />
+              <button className="nav-link" onClick={handleLogout} style={{ marginLeft: '0.25rem', padding: 0 }} title="Logout">
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
-          <div className="nav-links">
+          <div className="nav-links hide-scrollbar" style={{
+            display: 'flex',
+            overflowX: 'auto',
+            flexWrap: 'nowrap',
+            gap: '1.5rem',
+            width: '100%',
+            paddingBottom: '0.25rem',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+            paddingTop: '0.5rem'
+          }}>
             <button
               className={`nav-link ${view === 'dashboard' ? 'active' : ''}`}
               onClick={() => setView('dashboard')}
+              style={{ whiteSpace: 'nowrap', fontSize: '0.92rem' }}
             >
               Dashboard
             </button>
             <button
               className={`nav-link ${view === 'leaderboard' ? 'active' : ''}`}
               onClick={() => setView('leaderboard')}
+              style={{ whiteSpace: 'nowrap', fontSize: '0.92rem' }}
             >
               Leaderboard
             </button>
             <button
               className={`nav-link ${view === 'admin' ? 'active' : ''}`}
               onClick={() => setView('admin')}
+              style={{ whiteSpace: 'nowrap', fontSize: '0.92rem' }}
             >
               Family Overview
             </button>
-            <div className="flex items-center gap-2" style={{ marginLeft: '1rem', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '1.5rem' }}>
-              <div className="flex flex-col items-end mr-2">
-                <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{currentUser.name}</span>
-                <span className="text-accent" style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Trophy size={12} /> {users.find(u => u.id === currentUser.id)?.points || 0} pts
-                </span>
-              </div>
-              <UserCircle size={28} className="text-accent" />
-              <button className="nav-link" onClick={handleLogout} style={{ marginLeft: '1rem' }} title="Logout">
-                <LogOut size={20} />
-              </button>
-            </div>
           </div>
         </header>
       )}
@@ -252,7 +266,7 @@ function LoginView({ onProfileCreated }) {
     setLoading(true);
 
     if (isSignUP) {
-      const emailRedirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`
+      const emailRedirectTo = import.meta.env.VITE_EMAIL_REDIRECT_URL || 'https://hadi-allawati.github.io/quran-rotation/'
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -425,6 +439,29 @@ function DashboardView({ user, users, setUsers, systemDate, onStartReading }) {
   const isCompleted = user.completedWeek >= currentWeek;
 
   const [pageRange, setPageRange] = useState('');
+  const [shiaTimes, setShiaTimes] = useState(null);
+
+  useEffect(() => {
+    const fetchShiaPrayerTimes = async () => {
+      try {
+        const response = await fetch('https://api.aladhan.com/v1/timingsByCity?city=Muscat&country=Oman&method=0');
+        const data = await response.json();
+        if (data.code === 200) {
+          setShiaTimes({
+            Fajr: data.data.timings.Fajr,
+            Dhuhr: data.data.timings.Dhuhr,
+            Asr: data.data.timings.Asr,
+            Maghrib: data.data.timings.Maghrib,
+            Isha: data.data.timings.Isha
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load Shia prayer times:', err);
+      }
+    };
+
+    fetchShiaPrayerTimes();
+  }, []);
 
   // Generate Juz page ranges based on the specific Juz pulled from API
   useEffect(() => {
@@ -553,7 +590,7 @@ function DashboardView({ user, users, setUsers, systemDate, onStartReading }) {
                   <span className="text-danger flex items-center gap-1"><AlertTriangle size={16} /> Ends {timeRemaining}</span>
                 </div>
                 <button className="btn btn-primary" style={{ width: '100%', fontSize: '1.1rem', padding: '1rem' }} onClick={handleStartReadingClick}>
-                  <BookOpen size={20} /> Start Reading Now
+                  <BookOpen size={20} /> {user.current_bookmark ? 'Resume Reading' : 'Start Reading Now'}
                 </button>
                 <div className="text-center mt-2">
                   <button className="btn nav-link text-muted" style={{ fontSize: '0.9rem' }} onClick={handleMarkComplete}>
@@ -598,6 +635,28 @@ function DashboardView({ user, users, setUsers, systemDate, onStartReading }) {
           )}
         </div>
 
+        <div className="glass-panel">
+          <h3 className="flex items-center gap-2 mb-3"><Clock className="text-accent" /> Shia Prayer Times</h3>
+          <p className="text-muted mb-3" style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
+            Source: Aladhan (Method 0, Ithna Ashari)<br />
+            Location: Muscat, Oman
+          </p>
+          {shiaTimes ? (
+            <div className="flex flex-col gap-2 animate-fade-in">
+              {Object.entries(shiaTimes).map(([name, value]) => (
+                <div key={name} className="flex justify-between items-center" style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <span className="text-muted font-bold">{name}</span>
+                  <span className="text-main font-bold" style={{ color: 'var(--color-accent)' }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center p-4">
+              <LoaderCircle className="animate-spin text-accent" size={24} />
+            </div>
+          )}
+        </div>
+
       </div>
 
     </div>
@@ -613,6 +672,35 @@ function QuranReaderView({ user, users, setUsers, systemDate, onBack }) {
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [savingBookmark, setSavingBookmark] = useState(null);
+  const ayahRefs = useRef({});
+
+  useEffect(() => {
+    if (!loading && ayahs.length > 0 && user.current_bookmark) {
+      setTimeout(() => {
+        const target = ayahRefs.current[user.current_bookmark];
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 500);
+    }
+  }, [loading, ayahs, user.current_bookmark]);
+
+  const handleSaveBookmark = async (ayahNumber) => {
+    try {
+      const targetBookmark = user.current_bookmark === ayahNumber ? null : ayahNumber;
+      setSavingBookmark(ayahNumber);
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ current_bookmark: targetBookmark })
+        .eq('id', user.id);
+      if (updateError) throw updateError;
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, current_bookmark: targetBookmark } : u));
+    } catch (err) {
+      console.error('Failed to save bookmark:', err);
+      alert('Failed to save bookmark. Please try again.');
+    } finally {
+      setSavingBookmark(null);
+    }
+  };
 
   useEffect(() => {
     const fetchJuz = async () => {
@@ -712,6 +800,10 @@ function QuranReaderView({ user, users, setUsers, systemDate, onBack }) {
           <CheckCircle size={16} /> Finish
         </button>
       </div>
+      <div className="text-center py-2 mb-3" style={{ background: 'rgba(212, 175, 55, 0.15)', color: 'var(--color-accent)', fontSize: '0.85rem', borderRadius: 'var(--radius-md)' }}>
+        <Bookmark size={14} style={{ display: 'inline', marginRight: '0.35rem', verticalAlign: 'middle' }} />
+        Tap any ayah to save and highlight your current position.
+      </div>
 
       <div style={{ flex: 1, padding: '2rem 1rem', overflowY: 'auto' }}>
         {loading ? (
@@ -731,11 +823,37 @@ function QuranReaderView({ user, users, setUsers, systemDate, onBack }) {
                 <div className="surah-header">{surahName}</div>
                 <div className="ayah-blocks" style={{ textAlign: 'center' }}>
                   {surahAyahs.map(ayah => (
-                    <div key={ayah.number} className="ayah-container">
-                      <span className="ayah-text">
+                    <div
+                      key={ayah.number}
+                      className="ayah-container"
+                      onClick={() => handleSaveBookmark(ayah.number)}
+                      ref={(el) => { ayahRefs.current[ayah.number] = el; }}
+                      style={{ position: 'relative', cursor: 'pointer', transition: 'all 0.3s ease' }}
+                    >
+                      {savingBookmark === ayah.number ? (
+                        <LoaderCircle size={16} className="animate-spin text-accent" style={{ position: 'absolute', top: 0, left: 0 }} />
+                      ) : null}
+                      <span
+                        className="ayah-text"
+                        style={{
+                          color: user.current_bookmark === ayah.number ? 'var(--color-accent)' : 'inherit',
+                          textShadow: user.current_bookmark === ayah.number ? '0 0 12px rgba(212, 175, 55, 0.4)' : 'none',
+                          opacity: savingBookmark === ayah.number ? 0.5 : 1,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
                         {ayah.text.replace('بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ', '')}
                       </span>
-                      <span className="ayah-number">{ayah.numberInSurah}</span>
+                      <span
+                        className="ayah-number"
+                        style={{
+                          color: user.current_bookmark === ayah.number ? 'var(--color-accent)' : undefined,
+                          borderColor: user.current_bookmark === ayah.number ? 'var(--color-accent)' : undefined,
+                          opacity: savingBookmark === ayah.number ? 0.5 : 1
+                        }}
+                      >
+                        {ayah.numberInSurah}
+                      </span>
                     </div>
                   ))}
                 </div>
